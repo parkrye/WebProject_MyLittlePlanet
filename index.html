@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>My Little Planet</title>
+    <script type="module" crossorigin src="./assets/main-B3tN6SHo.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/Crafting-Dr1xugZa.js">
+    <link rel="stylesheet" crossorigin href="./assets/main-HLffSdxa.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="start-menu" hidden>
+        <div class="sm-panel">
+          <div class="sm-title">🪐 MY LITTLE PLANET</div>
+
+          <div class="sm-screen" data-screen="main">
+            <button class="sm-big" data-act="goto-create">세션 생성</button>
+            <button class="sm-big" data-act="goto-join">세션 참여</button>
+          </div>
+
+          <div class="sm-screen" data-screen="create" hidden>
+            <button class="sm-big" data-act="goto-load">저장된 세션 불러오기</button>
+            <button class="sm-big" data-act="goto-new">새로운 세션 시작</button>
+            <button class="sm-back" data-act="back-main">← 뒤로</button>
+          </div>
+
+          <div class="sm-screen" data-screen="load" hidden>
+            <div class="sm-sub">저장된 세션 (불러오면 혼자 플레이)</div>
+            <ul id="sm-saved-list" class="sm-list"></ul>
+            <button class="sm-back" data-act="back-create">← 뒤로</button>
+          </div>
+
+          <div class="sm-screen" data-screen="new" hidden>
+            <div class="sm-sub">새 세션 (빈 별로 시작)</div>
+            <input id="sm-new-name" class="sm-input" type="text" placeholder="세션 이름" maxlength="20" />
+            <label class="sm-check"><input id="sm-new-joinable" type="checkbox" /> 다른 유저 참여 허용</label>
+            <button class="sm-big" data-act="start-new">시작</button>
+            <button class="sm-back" data-act="back-create">← 뒤로</button>
+          </div>
+
+          <div class="sm-screen" data-screen="join" hidden>
+            <div class="sm-sub">네트워크의 열린 세션</div>
+            <ul id="sm-net-list" class="sm-list"></ul>
+            <button class="sm-back" data-act="refresh">↻ 새로고침</button>
+            <button class="sm-back" data-act="back-main">← 뒤로</button>
+          </div>
+
+          <div id="sm-msg" class="sm-msg"></div>
+        </div>
+      </div>
+
+      <div id="prologue" hidden>
+        <div id="pro-flash"></div>
+        <div class="pro-bar pro-top"></div>
+        <div class="pro-bar pro-bottom"></div>
+        <div id="pro-caption"></div>
+        <button id="pro-skip" type="button">건너뛰기 ⏭</button>
+        <div id="pro-fade"></div>
+      </div>
+
+      <div id="hud">
+        <div><span id="hud-fps">--</span> FPS · <span id="hud-view">3인칭</span> · <span id="net-count">오프라인</span></div>
+        <div id="hud-hint">WASD · Shift 달리기 · Space 점프 · F 채집/채광 · 1~9·휠 핫바 · Tab 가방/조합 · E 상호작용 · V 시점</div>
+        <div id="hud-hint-build" hidden>설치: 좌클릭 설치 · 우클릭 회수 · Q 회전 · T 부착/자유 · 같은 숫자키 다시 눌러 해제</div>
+      </div>
+
+      <div id="stat-bars">
+        <div class="stat-row">
+          <span class="stat-ic">❤</span>
+          <div class="stat-track"><div id="hp-fill" class="stat-fill hp"></div></div>
+          <span id="hp-text" class="stat-num">100</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-ic">🍖</span>
+          <div class="stat-track"><div id="hunger-fill" class="stat-fill hunger"></div></div>
+          <span id="hunger-text" class="stat-num">100</span>
+        </div>
+        <div id="dev-meter" title="별 발전도 — 이 별을 테라포밍한 정도(조합·해금·설치로 상승)">
+          <span class="stat-ic">🌍</span>
+          <span class="dev-label">별 발전도</span>
+          <span id="dev-value">0</span>
+        </div>
+      </div>
+
+      <div id="death-overlay" hidden>
+        <div class="death-card">
+          <div class="death-title">💀 사망</div>
+          <div id="death-hint" class="death-hint"></div>
+          <div class="death-actions">
+            <button id="death-revive" type="button" hidden>부활 토템 사용</button>
+            <button id="death-respawn" type="button">스폰에서 부활 (아이템 일부 손실)</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="hud-actions">
+        <button id="btn-records" type="button" title="기록">📊</button>
+        <button id="btn-light" type="button" title="그림자·조명 토글">💡</button>
+        <button id="btn-mute" type="button" title="음소거 토글">🔊</button>
+      </div>
+      <div id="hotbar"></div>
+      <div id="reticle"></div>
+      <div id="mg-crosshair"></div>
+      <div id="mg-countdown" hidden></div>
+      <div id="dmg-flash"></div>
+      <div id="target-label" hidden></div>
+      <div id="machine-prompt" hidden></div>
+      <div id="build-banner" hidden>
+        <img id="build-thumb" alt="" hidden />
+        <div id="build-banner-text">🛠 빌드 · <span id="build-sel">—</span></div>
+      </div>
+
+      <div id="craft-menu" hidden>
+        <div class="panel-title">조합 — 기계 제작</div>
+        <ul id="craft-list"></ul>
+        <div class="panel-foot">Esc 닫기</div>
+      </div>
+
+      <div id="jump-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🏃 점프맵 — 레벨 선택</div>
+          <div class="js-section">정규 레벨 <span class="js-hint">난이도 1 → 10, 통과 시 다음 레벨 해금</span></div>
+          <div id="js-levels" class="js-grid"></div>
+          <div class="js-section">무한 모드</div>
+          <div id="js-infinite"></div>
+          <div class="js-section">저장한 맵</div>
+          <div id="js-maps" class="js-list"></div>
+          <div class="panel-foot"><button id="js-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="race-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🏎 레이싱 — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">난이도·AI 강화 1 → 10, 1위로 통과 시 다음 해금</span></div>
+          <div id="rs-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="rs-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="shoot-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🔫 슈팅 — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">터렛 수·종류·탄막 1 → 10, 전멸시키면 다음 해금</span></div>
+          <div id="ss-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="ss-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="fps-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🎯 FPS — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">적 수·종류·강함 1 → 10, 목표 처치 시 다음 해금</span></div>
+          <div id="fs-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="fs-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="bumper-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">💥 범퍼 아레나 — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">AI 수·공격성 1 → 8, 최후의 1인이 되면 다음 해금</span></div>
+          <div id="bp-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="bp-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="fall-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🏃 낙하 서바이벌 — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">목표 생존 시간·운석 빈도 1 → 8, 버텨내면 다음 해금</span></div>
+          <div id="fl-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="fl-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="defense-select" hidden>
+        <div class="js-panel">
+          <div class="panel-title">🛡 협동 디펜스 — 레벨 선택</div>
+          <div class="js-section">레벨 <span class="js-hint">웨이브·적 능력 1 → 8, 코어를 지켜내면 다음 해금</span></div>
+          <div id="df-levels" class="js-grid"></div>
+          <div class="panel-foot"><button id="df-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="beacon-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">📡 데이터 신호기</div>
+          <div class="beacon-desc">자원을 투입해 게이지를 채우면 잠긴 외형 파츠 1개가 무작위로 해금됩니다.</div>
+          <div class="beacon-gauge"><div id="beacon-fill"></div></div>
+          <div id="beacon-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="beacon-insert" type="button">자원 투입</button>
+          </div>
+          <div class="panel-foot"><button id="beacon-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="incubator-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🌱 씨앗 배양기</div>
+          <div class="beacon-desc">자원을 투입해 게이지를 채우면 무작위 작물 씨앗 1개를 배양합니다.</div>
+          <div class="beacon-gauge"><div id="incubator-fill"></div></div>
+          <div id="incubator-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="incubator-insert" type="button">자원 투입</button>
+          </div>
+          <div class="panel-foot"><button id="incubator-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="planter-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🌱 재배 시설</div>
+          <div id="planter-body"></div>
+          <div id="planter-msg" class="beacon-msg"></div>
+          <div class="panel-foot"><button id="planter-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="terraformer-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🐟 테라포밍 시설</div>
+          <div class="beacon-desc">물고기 데이터를 투입해 게이지를 채우면 무작위 어종이 이 별에 자생합니다. 자생시킨 어종은 낚시로 잡을 수 있습니다.</div>
+          <div class="beacon-gauge"><div id="terraformer-fill"></div></div>
+          <div id="terraformer-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="terraformer-insert" type="button">자원 투입</button>
+          </div>
+          <div class="panel-foot"><button id="terraformer-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="hatchery-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🐣 동물 부화기</div>
+          <div class="beacon-desc">생명 데이터를 투입해 게이지를 채우면 무작위 동물의 새끼를 부화시킵니다.</div>
+          <div class="beacon-gauge"><div id="hatchery-fill"></div></div>
+          <div id="hatchery-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="hatchery-insert" type="button">자원 투입</button>
+          </div>
+          <div class="panel-foot"><button id="hatchery-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="animal-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🐾 동물</div>
+          <div id="animal-body"></div>
+          <div id="animal-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="animal-feed" type="button">먹이 주기</button>
+            <button id="animal-collect" type="button">채집</button>
+            <button id="animal-butcher" type="button">도축</button>
+          </div>
+          <div class="panel-foot"><button id="animal-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="generator-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">⚡ 발전기</div>
+          <div class="beacon-desc">에너지를 만들어 연결된 자동 기계에 공급합니다.</div>
+          <div class="beacon-gauge"><div id="generator-energy"></div></div>
+          <div id="generator-fuel-row" hidden>
+            <div class="farm-remain">연료</div>
+            <div class="beacon-gauge"><div id="generator-fuel"></div></div>
+          </div>
+          <div id="generator-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="generator-insert" type="button" hidden>연료 투입</button>
+          </div>
+          <div class="panel-foot"><button id="generator-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+
+      <div id="research-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title">🔬 연구소 — 기술 개발</div>
+          <div id="research-body"></div>
+          <div id="research-msg" class="beacon-msg"></div>
+          <div class="panel-foot"><button id="research-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="decoder-panel" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title" id="decoder-title">📡 데이터 해독기</div>
+          <div class="beacon-desc">자원을 투입해 데이터를 해독하면 무작위 1종이 해금됩니다. 해금된 것은 생성기로 생산할 수 있습니다.</div>
+          <div class="beacon-gauge"><div id="decoder-fill"></div></div>
+          <div id="decoder-msg" class="beacon-msg"></div>
+          <div class="beacon-actions">
+            <button id="decoder-insert" type="button">자원 투입</button>
+          </div>
+          <div class="panel-foot"><button id="decoder-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="robot-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title">🤖 자원 수집 로봇</div>
+          <div class="beacon-desc">맵을 돌며 바닥 자원을 주워 연결된 창고에 입고합니다. 연결기로 창고와 연결하세요.</div>
+          <div id="robot-body"></div>
+          <div class="panel-foot"><button id="robot-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="processor-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title" id="processor-title">⚙ 가공기</div>
+          <div class="beacon-desc">재료를 넣으면 시간이 지나 가공물이 완성됩니다. 완성되면 수령하세요.</div>
+          <div id="processor-body"></div>
+          <div id="processor-msg" class="beacon-msg"></div>
+          <div class="panel-foot"><button id="processor-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="picture-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title">🖼 액자 — 그림</div>
+          <div id="picture-body"></div>
+          <input id="picture-file" type="file" accept="image/*" hidden />
+          <div class="panel-foot"><button id="picture-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="mg-lobby" hidden>
+        <div class="js-panel beacon-card">
+          <div class="panel-title">🎮 미니게임 로비</div>
+          <div id="mg-lobby-body"></div>
+        </div>
+      </div>
+
+      <div id="play-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title" id="play-title">🎹 악기 연주</div>
+          <div id="play-body"></div>
+          <div class="panel-foot"><button id="play-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="jukebox-panel" hidden>
+        <div class="js-panel beacon-card research-card">
+          <div class="panel-title">🎵 주크박스 — 배경음악</div>
+          <div id="jukebox-body"></div>
+          <div class="panel-foot"><button id="jukebox-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="customize" hidden>
+        <div class="js-panel cz-panel">
+          <div class="panel-title" id="cz-title">외형 변경</div>
+          <div id="cz-tabs" class="cz-tabs"></div>
+          <div id="cz-grid" class="cz-grid"></div>
+          <div class="panel-foot"><button id="cz-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="records" hidden>
+        <div class="js-panel rec-panel">
+          <div class="panel-title">📊 기록 — 미니게임 최고 기록</div>
+          <div id="rec-body"></div>
+          <div class="panel-foot"><button id="rec-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+
+      <div id="jm-hud" hidden>
+        <div id="jm-timer">00:00.0</div>
+        <div id="jm-best">최고 --</div>
+        <div id="jm-hint">화면 클릭 잠금 · WASD 이동 · Space 점프 · R 재시작 · Esc 나가기</div>
+      </div>
+      <div id="jm-result" hidden>
+        <div class="overlay-card">
+          <div id="jm-result-title">🏁 도착!</div>
+          <div id="jm-result-time">기록 --</div>
+          <div id="jm-result-best">최고 --</div>
+          <div id="jm-save-row" hidden>
+            <input id="jm-save-name" type="text" placeholder="맵 이름" maxlength="20" />
+            <button id="jm-save-btn" type="button">맵 저장</button>
+          </div>
+          <div class="overlay-actions">
+            <button id="jm-retry" type="button">다시 (R)</button>
+            <button id="jm-exit" type="button">허브로 (Esc)</button>
+          </div>
+        </div>
+      </div>
+      <div id="toast" hidden></div>
+
+      <div id="inventory-ui" hidden>
+        <div class="js-panel inv-panel">
+          <div class="panel-title" id="invui-title">가방</div>
+          <div id="invui-equip" class="inv-equip"></div>
+          <div class="inv-cols">
+            <div class="inv-col">
+              <div class="inv-col-head" id="invui-left-head">인벤토리</div>
+              <div id="invui-grid" class="inv-grid"></div>
+            </div>
+            <div class="inv-col" id="invui-store-col" hidden>
+              <div class="inv-col-head" id="invui-store-head">창고</div>
+              <div id="invui-store-grid" class="inv-grid"></div>
+            </div>
+          </div>
+          <div id="invui-detail" class="inv-detail"></div>
+          <div class="inv-section">🖐 맨손 조합</div>
+          <ul id="invui-craft" class="inv-craft"></ul>
+          <div class="inv-section">🎒 핫바 — 아이템 선택 후 슬롯 클릭 · 빈손이면 슬롯 비우기</div>
+          <div id="invui-hotbar" class="inv-hotbar"></div>
+          <div class="panel-foot"><button id="invui-close" type="button">닫기 (Esc)</button></div>
+        </div>
+      </div>
+      <div id="touch-ui" hidden>
+        <div id="look-zone"></div>
+        <div id="joystick"><div id="joystick-knob"></div></div>
+        <button id="btn-net" class="touch-btn" type="button">NET</button>
+        <button id="btn-use" class="touch-btn" type="button">E</button>
+        <button id="btn-craft" class="touch-btn" type="button">조합</button>
+        <button id="btn-inv" class="touch-btn" type="button">가방</button>
+        <button id="btn-build" class="touch-btn" type="button">BUILD</button>
+        <button id="btn-jump" class="touch-btn" type="button">JUMP</button>
+        <button id="btn-view" class="touch-btn" type="button">VIEW</button>
+        <button id="btn-place" class="touch-btn build-only" type="button">설치</button>
+        <button id="btn-pick" class="touch-btn build-only" type="button">회수</button>
+        <button id="btn-destroy" class="touch-btn build-only" type="button">파괴</button>
+        <button id="btn-cycle" class="touch-btn build-only" type="button">⟳</button>
+        <button id="btn-rotate" class="touch-btn build-only" type="button">↻회전</button>
+        <button id="btn-snap" class="touch-btn build-only" type="button">부착</button>
+        <button id="btn-fire" class="touch-btn mg-only" type="button">발사</button>
+        <button id="btn-restart" class="touch-btn mg-only" type="button">다시</button>
+        <button id="btn-exit" class="touch-btn mg-only" type="button">나가기</button>
+      </div>
+    </div>
+  </body>
+</html>
